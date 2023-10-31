@@ -1,4 +1,4 @@
 class Product < ApplicationRecord
     belongs_to :user
-    validates_presence_of :user
+    validates :user, :name, :price, presence: true
 end

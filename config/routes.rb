@@ -2,6 +2,7 @@ Rails.application.routes.draw do
   get '/current_user', to: 'current_user#index'
 
   resources :products
+  resources :categories
 
   devise_for :users, path: '', path_names: {
     sign_in: 'login',

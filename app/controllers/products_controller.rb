@@ -1,15 +1,34 @@
 class ProductsController < ApplicationController
     before_action :authenticate_user!, only: [:create, :update, :destroy]
 
-    def index
-      render json: Product.all
+    def index  
+        normalized_products = Product.all.map { |product|
+            {
+                name: product.name, 
+                description: product.description,
+                id: product.id, 
+                is_author: product.user.id == current_user&.id,
+                category: { name: product.category.name, id: product.category.id }
+            }
+        }
+
+        render json: {
+            products:  normalized_products
+        }
     end
   
     def show 
-        product = find_product(params[:id])
+        product = find_product(params[:id], false)
+        normalized_product = {
+            name: product.name, 
+            description: product.description,
+            id: product.id, 
+            is_author: product.user.id == current_user&.id,
+            category: { name: product.category.name, id: product.category.id }
+        }
         render json: {
             status: {code: 200},
-            product: product
+            product: normalized_product
         }
     end
 
@@ -46,11 +65,11 @@ class ProductsController < ApplicationController
         end
     end
 
-    def find_product(product_id)
+    def find_product(product_id, check_for_authorship = true)
         begin
             product = Product.find(product_id)
             if product.present?
-                if product.user.id == current_user.id
+                if ((product.user.id == current_user&.id && check_for_authorship) || !check_for_authorship)
                     return product
                 else
                     render json: {

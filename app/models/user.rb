@@ -1,6 +1,7 @@
 class User < ApplicationRecord
-  has_many :products
-
+  has_many :products, dependent: :destroy
+  has_many :orders, dependent: :destroy
+  
   include Devise::JWT::RevocationStrategies::JTIMatcher
 
   devise :database_authenticatable, :registerable, :validatable,

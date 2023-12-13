@@ -1,5 +1,5 @@
 class CategoriesController < ApplicationController
-  before_action :is_admin_user,     only: [:update, :destroy]
+  before_action :is_admin_user, only: [:update, :destroy]
   
   def index
     render json: Category.all

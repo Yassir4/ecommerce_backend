@@ -1,33 +1,80 @@
 class OrdersController < ApplicationController
     before_action :authenticate_user!, only: [:create, :index]
 
-    # create an order with all the products
+
     def create
         products = order_params[:products]
 
         if products.length > 0
+            # TODO: add an error when a certain product is out of stock or the order quantity is less than the available quantity
+            # the current behavior excludes the product if it's out of stock or uses the available quantity when the order quantity exceeds the available quantity
             order = current_user.orders.create
+            paypal_response = {
+                purchase_units: [
+                    reference_id: "ref_#{order.id}",
+                    items: [],
+                    intent: 'CAPTURE'
+                ]
+            }
             products.each do |item|
                 product = Product.find(item[:id])
+                if (product.present? && product&.quantity > 0)
+                    price = product.quantity >= item[:quantity] ? item[:quantity] * product.price : product.quantity * product.price
+                    
+                    quantity =  product.quantity >= item[:quantity] ? item[:quantity] : product.quantity
+                    product.quantity -= quantity
 
-                if (product.present?)
-                    price = item[:quantity] * product.price
+                    paypal_response[:purchase_units][0][:items].push({   
+                        name: product.name,
+                        description: product.description,
+                        unit_amount: {
+                            currency_code: "USD",
+                            value: product.price,
+                        },
+                        quantity: quantity
+                    })
+                    
+                    # here I coudln't use the order.products as it returns an empty array.
                     order.orders_products.create(product: product, quantity: item[:quantity], price: price )
+                     
                     order.total = (order.total || 0) + price
+                    product.save
+
                 end
-                order.save
-                # add else condition for missing products
             end
-            render json: {
-                status: {code: 200},
-                order: order
-            }
-        else
-            render json: {
-                status: {code: 403},
-                errors: ["Products are empty"]
-            }
+
+            if order.save!
+                if order.orders_products.length > 0
+
+                    paypal_response[:purchase_units][0][:amount] = {
+                        currency_code: "USD",
+                        value: order.total,
+                        breakdown: {
+                            item_total: {
+                                currency_code: "USD",
+                                value: order.total,
+                            }
+                        }
+                    }
+
+                    render json: {
+                        status: {code: 200},
+                        response: paypal_response
+                    }
+                    return
+                end
+                order.destroy
+                render json: {
+                    status: {code: 400},
+                    errors: ['something went wront']
+                }
+                return
+            end
         end
+        render json: {
+            status: {code: 400},
+            errors: ['somethasdfing went wront']
+        }
     end
 
 
@@ -40,8 +87,7 @@ class OrdersController < ApplicationController
                     products_count: order&.products&.length || 0
                 }
             end
-            }
-        
+            } 
     end
 
 

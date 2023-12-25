@@ -1,5 +1,7 @@
 class ProductsController < ApplicationController
     before_action :authenticate_user!, only: [:create, :update, :destroy]
+    before_action :user_has_permission, only: [:create, :update, :destroy]
+
 
     def index  
         normalized_products = Product.all.map { |product|
@@ -8,23 +10,27 @@ class ProductsController < ApplicationController
                 description: product.description,
                 id: product.id, 
                 is_author: product.user.id == current_user&.id,
-                category: { name: product.category.name, id: product.category.id }
+                category: { name: product.category.name, id: product.category.id },
+                user_can_edit: current_user ? user_has_permission(product.id) : false,
+                quantity: product.quantity
             }
         }
-
         render json: {
             products:  normalized_products
         }
     end
   
-    def show 
-        product = find_product(params[:id], false)
+    def show
+        product = find_product(params[:id])
         normalized_product = {
             name: product.name, 
             description: product.description,
             id: product.id, 
-            is_author: product.user.id == current_user&.id,
-            category: { name: product.category.name, id: product.category.id }
+            is_author: product&.user&.id == current_user&.id,
+            category: { name: product.category.name, id: product.category.id },
+            user_can_edit: current_user ? user_has_permission(product.id) : false,
+            quantity: product.quantity,
+            price: product.price
         }
         render json: {
             status: {code: 200},
@@ -53,6 +59,10 @@ class ProductsController < ApplicationController
                 status: { code: 200 },
                 product: product
             }
+        else 
+            render json: {
+                status: { code: 400 },
+            }
         end
     end
 
@@ -65,31 +75,39 @@ class ProductsController < ApplicationController
         end
     end
 
-    def find_product(product_id, check_for_authorship = true)
+    def find_product(product_id)
         begin
             product = Product.find(product_id)
             if product.present?
-                if ((product.user.id == current_user&.id && check_for_authorship) || !check_for_authorship)
-                    return product
-                else
-                    render json: {
-                        status: :unauthorized
-                    }
-                end
+                puts '======='
+                return product
             end
         rescue ActiveRecord::RecordNotFound
             render json: {
                 status: :not_found
             }
         end
-        return
+        # return product
     end
 
     private
 
     def product_params
-        params.require(:product).permit(:name, :description, :price, :category_id)
+        params.require(:product).permit(:name, :description, :price, :category_id, :quantity)
     end
 
+    def user_has_permission(product_id = params[:id])
+        product = find_product(product_id)
+        if product.present?
+            if ((product.user.id == current_user&.id) || current_user&.admin)
+                return true
+            else
+                render json: {
+                    status: :not_found
+                }
+            end
+        end
+        return false
+    end
   end
   

@@ -1,6 +1,6 @@
 class ProductsController < ApplicationController
     before_action :authenticate_user!, only: [:create, :update, :destroy]
-    before_action :user_has_permission, only: [:create, :update, :destroy]
+    before_action :user_has_permission, only: [:update, :destroy]
 
 
     def index  
@@ -16,26 +16,28 @@ class ProductsController < ApplicationController
             }
         }
         render json: {
-            products:  normalized_products
+            products: normalized_products
         }
     end
   
     def show
         product = find_product(params[:id])
-        normalized_product = {
-            name: product.name, 
-            description: product.description,
-            id: product.id, 
-            is_author: product&.user&.id == current_user&.id,
-            category: { name: product.category.name, id: product.category.id },
-            user_can_edit: current_user ? user_has_permission(product.id) : false,
-            quantity: product.quantity,
-            price: product.price
-        }
-        render json: {
-            status: {code: 200},
-            product: normalized_product
-        }
+        if product&.exist
+            normalized_product = {
+                name: product.name, 
+                description: product.description,
+                id: product.id, 
+                is_author: product&.user&.id == current_user&.id,
+                category: { name: product.category.name, id: product.category.id },
+                user_can_edit: current_user ? user_has_permission(product.id) : false,
+                quantity: product.quantity,
+                price: product.price
+            }
+            render json: {
+                status: {code: 200},
+                product: normalized_product
+            }, status: 200
+        end
     end
 
     def create
@@ -44,11 +46,11 @@ class ProductsController < ApplicationController
             render json: {
                 status: {code: 200},
                 product: product
-            }
+            }, status: 200
         else
             render json: {
-                status: {code: 422, errors: product.errors},
-            }
+                status: {errors: product.errors},
+            }, status: 422
         end
     end
 
@@ -61,7 +63,7 @@ class ProductsController < ApplicationController
             }
         else 
             render json: {
-                status: { code: 400 },
+                status: { code: 400 }, status: 400
             }
         end
     end
@@ -71,7 +73,7 @@ class ProductsController < ApplicationController
         if product.destroy
             render json: {
                 status: { code: 200 }
-            }
+            }, status: 200
         end
     end
 
@@ -79,15 +81,13 @@ class ProductsController < ApplicationController
         begin
             product = Product.find(product_id)
             if product.present?
-                puts '======='
                 return product
             end
         rescue ActiveRecord::RecordNotFound
             render json: {
                 status: :not_found
-            }
+            }, status: :not_found
         end
-        # return product
     end
 
     private
@@ -104,10 +104,10 @@ class ProductsController < ApplicationController
             else
                 render json: {
                     status: :not_found
-                }
+                }, status: :unauthorized
             end
         end
         return false
     end
-  end
+end
   

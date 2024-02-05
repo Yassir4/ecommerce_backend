@@ -19,10 +19,10 @@ class ProductsController < ApplicationController
             products: normalized_products
         }
     end
-  
+
     def show
         product = find_product(params[:id])
-        if product&.exist
+        if product&.present?
             normalized_product = {
                 name: product.name, 
                 description: product.description,

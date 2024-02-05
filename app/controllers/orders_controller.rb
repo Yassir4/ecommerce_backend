@@ -4,87 +4,27 @@ class OrdersController < ApplicationController
 
     def create
         products = order_params[:products]
-        paypal_response = {}
+        # paypal_response = {}
         order_id = ''
         if products.length > 0
-
-            ActiveRecord::Base.transaction do
-                # TODO: add an error when a certain product is out of stock or the order quantity is less than the available quantity
-                # the current behavior excludes the product if it's out of stock or uses the available quantity when the order quantity exceeds the available quantity
-                order = current_user.orders.create
-                order_id = order.id
-                paypal_response = {
-                    purchase_units: [
-                        reference_id: "ref_#{order_id}",
-                        items: [],
-                        intent: 'CAPTURE'
-                    ]
+            response = CreateOrderWithProducts.new(products, current_user).call
+            # puts "---------"
+            # puts response
+            # puts "---------"
+            if response
+                render json: response
+            else
+                render json: { 
+                    status: {code: 400},
+                    errors: ['something went wrong', order]
                 }
-                begin
-                    products.each do |item|
-                        product = Product.lock.find(item[:id])
-                        if (product.present? && product&.quantity > 0)
-                            price = product.quantity >= item[:quantity] ? item[:quantity] * product.price : product.quantity * product.price
-                            
-                            quantity =  product.quantity >= item[:quantity] ? item[:quantity] : product.quantity
-                            product.quantity -= quantity
-
-                            paypal_response[:purchase_units][0][:items].push({   
-                                name: product.name,
-                                description: product.description,
-                                unit_amount: {
-                                    currency_code: "USD",
-                                    value: product.price,
-                                },
-                                quantity: quantity
-                            })
-
-                            # here I coudln't use the order.products as it returns an empty array.
-                            order.orders_products.create(product: product, quantity: item[:quantity], price: price )
-
-                            order.total = (order.total || 0) + price
-                            product.save!
-
-                        end
-                    end
-                    if order.save!
-                        if order.orders_products.length > 0
-                            paypal_response[:purchase_units][0][:amount] = {
-                                currency_code: "USD",
-                                value: order.total,
-                                breakdown: {
-                                    item_total: {
-                                        currency_code: "USD",
-                                        value: order.total,
-                                    }
-                                }
-                            }
-                        else
-                            render json: {
-                                status: {code: 400},
-                                errors: ['something went wront', order]
-                            }
-                            return
-                        end
-                    end
-                    
-                rescue
-                    render json: {
-                        status: {code: 400},
-                        errors: ['something went wront', order]
-                    }
-                    raise ActiveRecord::Rollback
-                    return
-                end
-            end
+            end   
         else 
             render json: {
                 status: {code: 400},
                 errors: ["products can't be empty"]
             }
-            return
         end
-        render_order_data(order_id, paypal_response)
     end
 
 
@@ -132,13 +72,7 @@ class OrdersController < ApplicationController
         params.permit(orders: {}, products: [:id, :quantity])
     end
 
-    def render_order_data(order_id, paypal_response)
-        render json: {
-            status: {code: 200},
-            response: paypal_response,
-            order_id: order_id
-        }
-    end
+    
 
     def update_order_params
         params.require(:order).permit(:status)

@@ -35,7 +35,7 @@ RSpec.describe Order, type: :request do
 
         
         it "should mark order as paid"  do 
-            put '/orders/1', as: :json, params: {order: {status: "paid"}}, headers: @customer_auth_headers
+            put '/orders/1', as: :json, params: { order: {status: "paid"} }, headers: @customer_auth_headers
             response_json = JSON.parse(response.body)
             expect(response_json["status"]["code"]).to equal(200)
             expect(response_json["order"]["status"]).to eq("paid")

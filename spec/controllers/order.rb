@@ -12,7 +12,6 @@ RSpec.describe Order, type: :request do
 
 
     describe "order CRUD" do 
-       
         it "logged out user should not create an order"  do 
             post '/orders'
             expect(response).to have_http_status(:unauthorized)
@@ -25,6 +24,7 @@ RSpec.describe Order, type: :request do
                     quantity: 5
                 }]
             }
+
             post '/orders', params: params_orders, as: :json, headers: @customer_auth_headers
 
             response_json = JSON.parse(response.body)

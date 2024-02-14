@@ -9,7 +9,7 @@ RSpec.describe Order, type: :model do
 
   describe 'save order' do
     it 'should update the total through the sum of products prices' do
-      @order.orders_products.create(product: @product, quantity: 2, price: @product.price)
+      @order.orders_products.create(product: @product, quantity: 2, price: @product.price * 2)
       
       expect(@order.total).to eq(nil)
       @order.save!

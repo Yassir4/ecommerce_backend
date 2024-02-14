@@ -6,11 +6,10 @@ class AddProductToOrder
     end
 
     def call
-        # calculate the order quantity 
-        # return the paypal data of the product
         if @product.present? && @product.quantity > 0
             quantity =  @product.quantity >= @product_order_quantity ? @product_order_quantity : @product.quantity
-            
+            price = quantity * @product.price
+
             paypal_item = {
                 name: @product.name,
                 description: @product.description,
@@ -22,8 +21,9 @@ class AddProductToOrder
             }
 
             
-            @order.add_product(@product, quantity)
-
+            @order.add_product(@product, quantity, price)
+            @product.quantity -= quantity
+            @product.save
             return paypal_item
         end
         return false

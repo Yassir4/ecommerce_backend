@@ -4,13 +4,10 @@ class OrdersController < ApplicationController
 
     def create
         products = order_params[:products]
-        # paypal_response = {}
         order_id = ''
         if products.length > 0
             response = CreateOrderWithProducts.new(products, current_user).call
-            # puts "---------"
-            # puts response
-            # puts "---------"
+            
             if response
                 render json: response
             else

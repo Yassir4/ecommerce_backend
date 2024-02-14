@@ -22,7 +22,6 @@ class CreateOrderWithProducts
             begin
                 @products.each do |item|
                     product = Product.lock.find(item[:id])
-
                     paypal_item = AddProductToOrder.new(order, product, item[:quantity]).call
                     if paypal_item
                         paypal_response[:purchase_units][0][:items].push(paypal_item)
@@ -34,9 +33,13 @@ class CreateOrderWithProducts
                         }
                     end
                 end
+                
+                total = calculate_total(order)
+                order.total = total
+
                 if order.save!
+                    
                     if order.orders_products.length > 0
-                        puts order.total
                         paypal_response[:purchase_units][0][:amount] = {
                             currency_code: "USD",
                             value: order.total,
@@ -51,7 +54,7 @@ class CreateOrderWithProducts
                         response = return_order_data(order.id, paypal_response)
                     end
                 end
-            rescue
+            rescue => e
                 return {
                     status: {code: 400},
                     errors: ['something went wrong', order]
@@ -63,6 +66,17 @@ class CreateOrderWithProducts
     end
 
     private
+
+    def calculate_total(order)
+        current_total = 0
+        order.orders_products.each do |product|
+          # change this after adding the product unique constraint
+          current_total += product.price  || 0
+        end
+        current_total
+    end
+
+
     def return_order_data(order_id, paypal_response)
         {
             status: {code: 200},

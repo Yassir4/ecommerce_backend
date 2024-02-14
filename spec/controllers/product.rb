@@ -72,5 +72,7 @@ RSpec.describe Product, type: :request do
             expect(response).to have_http_status(:not_found)
         end
 
+        it "normal customer can't delete the order"
+        it "admin can delete and update orders"
     end
 end
